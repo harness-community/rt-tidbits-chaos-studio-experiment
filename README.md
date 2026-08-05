@@ -141,7 +141,7 @@ Create a [Kubernetes connector](https://developer.harness.io/docs/platform/conne
 
 ### 4. Resilience Testing Infrastructure
 
-Create a **Kubernetes (Harness Infrastructure)** that uses the Delegate — do **not** use the legacy **Kubernetes (Dedicated Chaos Infrastructure)** flow (separate chaos agent; deprecated).
+Create a **Kubernetes (Harness Infrastructure)** that uses the Delegate
 
 1. In Harness, go to **Resilience Testing → Project Settings → Resilience Testing Infrastructures**.
 2. Select the **Kubernetes (Harness Infrastructure)** tab.
