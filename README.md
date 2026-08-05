@@ -4,13 +4,14 @@
 > **Duration:** ~10 minutes  
 > **Module:** Resilience Testing
 
-Build your first chaos experiment from scratch using **Harness Chaos Studio**. This tutorial walks you through deploying a simple Kubernetes service, injecting a Pod Delete fault, and validating self-healing with an HTTP probe.
+Build your first chaos experiment from scratch using **Harness Chaos Studio**. This tutorial walks you through deploying an **nginx-based Kubernetes service** (`resilience-demo` / `resilience-demo-svc` in `chaos-demo`), injecting a Pod Delete fault, and validating self-healing with an HTTP probe.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Target Service](#target-service)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Setup Instructions](#setup-instructions)
@@ -48,21 +49,34 @@ This tutorial demonstrates:
 
 
 
+## Target Service
+
+This tutorial deploys a multi-replica **nginx** web service into the `chaos-demo` namespace. That service is the fault-injection and HTTP probe target.
+
+| Resource | Name | Details |
+| -------- | ---- | ------- |
+| **Namespace** | `chaos-demo` | Isolated namespace for the demo |
+| **Deployment** | `resilience-demo` | `nginx:stable-alpine`, **3 replicas**, label `app=resilience-demo` |
+| **Service** | `resilience-demo-svc` | **ClusterIP** on port **80** → container port 80 |
+
+- Image: `nginx:stable-alpine` (default welcome page on `/`)
+- Health: readiness and liveness HTTP probes on `/` port 80
+- Chaos Studio probe URL: `http://resilience-demo-svc.chaos-demo.svc.cluster.local`
+
+Three replicas let a Pod Delete fault that affects ~50% of pods leave the Service available while Kubernetes recreates deleted pods. All of this is defined in a single manifest: `k8s/deployment.yaml`.
+
+---
+
+
+
 ## Repository Structure
 
 ```
 rt-tidbits-chaos-studio-experiment/
 ├── README.md                           # This file — full tutorial guide
 ├── LICENSE                             # Apache License 2.0
-├── .gitignore
-├── k8s/
-│   ├── namespace.yaml                  # Creates the chaos-demo namespace
-│   ├── deployment.yaml                 # nginx deployment with 3 replicas
-│   └── service.yaml                    # ClusterIP service (probe target)
-├── slides/
-│   └── slides.html                     # 2-slide presentation for the tutorial
-└── docs/
-    └── EXPERIMENT_WALKTHROUGH.md        # Detailed step-by-step walkthrough
+└── k8s/
+    └── deployment.yaml                 # Namespace, nginx Deployment, and ClusterIP Service
 ```
 
 ---
@@ -161,14 +175,8 @@ Clone this repository and apply the Kubernetes manifests:
 git clone https://github.com/animesh-sri-harness/rt-tidbits-chaos-studio-experiment-.git
 cd rt-tidbits-chaos-studio-experiment-
 
-# Create the namespace
-kubectl apply -f k8s/namespace.yaml
-
-# Deploy the application (nginx with 3 replicas)
+# Deploy namespace, nginx app (3 replicas), and ClusterIP service
 kubectl apply -f k8s/deployment.yaml
-
-# Expose the service
-kubectl apply -f k8s/service.yaml
 ```
 
 
