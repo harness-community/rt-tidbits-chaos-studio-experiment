@@ -1,10 +1,10 @@
-# Harness Resilience Testing Tidbit - Pod Delete Chaos Experiment
+# Harness Resilience Testing Tidbit - Pod Network Latency Chaos Experiment
 
 > **Level:** 101 – Beginner  
 > **Duration:** ~10 minutes  
 > **Module:** Resilience Testing
 
-Build your first chaos experiment from scratch using **Harness Chaos Studio**. This tutorial walks you through deploying an **nginx-based Kubernetes service** (`resilience-demo` / `resilience-demo-svc` in `chaos-demo`), injecting a Pod Delete fault, and validating self-healing with an HTTP probe.
+Build your first chaos experiment from scratch using **Harness Chaos Studio**. This tutorial walks you through deploying an **nginx-based Kubernetes service** (`resilience-demo` / `resilience-demo-svc` in `chaos-demo`), injecting a Pod Network Latency fault, and validating steady-state behavior with an HTTP probe.
 
 ---
 
@@ -19,7 +19,7 @@ Build your first chaos experiment from scratch using **Harness Chaos Studio**. T
   - [2. Verify the Deployment](#2-verify-the-deployment)
 - [Run the Chaos Experiment](#run-the-chaos-experiment)
   - [Step 1: Create a New Experiment](#step-1-create-a-new-experiment)
-  - [Step 2: Add the Pod Delete Fault](#step-2-add-the-pod-delete-fault)
+  - [Step 2: Add the Pod Network Latency Fault](#step-2-add-the-pod-network-latency-fault)
   - [Step 3: Attach an HTTP Probe](#step-3-attach-an-http-probe)
   - [Step 4: Execute and Analyze](#step-4-execute-and-analyze)
 - [Expected Outcome](#expected-outcome)
@@ -38,11 +38,11 @@ Build your first chaos experiment from scratch using **Harness Chaos Studio**. T
 This tutorial demonstrates:
 
 
-| Concept              | What You Will Learn                                                   |
-| -------------------- | --------------------------------------------------------------------- |
-| **Faults**           | How to inject controlled failures (Pod Delete) into a running service |
-| **Probes**           | How to set up HTTP health checks that validate steady-state behavior  |
-| **Resilience Score** | How to measure and quantify your system's ability to self-heal        |
+| Concept              | What You Will Learn                                                              |
+| -------------------- | -------------------------------------------------------------------------------- |
+| **Faults**           | How to inject controlled network delay (Pod Network Latency) into a running service |
+| **Probes**           | How to set up HTTP health checks that validate steady-state behavior             |
+| **Resilience Score** | How to measure and quantify your system's ability to stay available under stress |
 
 
 ---
@@ -64,7 +64,7 @@ This tutorial deploys a multi-replica **nginx** web service into the `chaos-demo
 - Health: readiness and liveness HTTP probes on `/` port **8080**
 - Chaos Studio probe URL: `http://resilience-demo-svc.chaos-demo.svc.cluster.local`
 
-Three replicas let a Pod Delete fault that affects ~50% of pods leave the Service available while Kubernetes recreates deleted pods. All of this is defined in a single manifest: `k8s/deployment.yaml`.
+Three replicas let a Pod Network Latency fault that affects ~50% of pods leave unaffected replicas able to serve traffic while delayed pods experience injected network delay. All of this is defined in a single manifest: `k8s/deployment.yaml`.
 
 ---
 
@@ -112,25 +112,7 @@ kubectl get nodes
 
 ### 2. Harness Delegate
 
-Chaos experiments run through the **Delegate-Driven Chaos Runner (DDCR)** — there is no separate chaos agent. Install a Harness Delegate (version `24.09.83900` or above) in your cluster using the **standard** Delegate image (it includes `kubectl` and `go-template`, which chaos needs).
-
-```bash
-# Install via Helm (replace values with your account details)
-helm repo add harness-delegate https://app.harness.io/storage/harness-download/delegate-helm-chart/
-helm repo update
-
-helm install harness-delegate harness-delegate/harness-delegate-ng \
-  --namespace harness-delegate-ng --create-namespace \
-  --set accountId=<YOUR_ACCOUNT_ID> \
-  --set delegateToken=<YOUR_DELEGATE_TOKEN> \
-  --set managerEndpoint=https://app.harness.io \
-  --set delegateName=chaos-delegate
-
-# Verify the delegate is connected
-kubectl get pods -n harness-delegate-ng
-```
-
-> **Note:** You can also install the Delegate from the Harness UI under **Project Settings → Delegates → + New Delegate**.
+Chaos experiments run through the **Delegate-Driven Chaos Runner (DDCR)** — there is no separate chaos agent. Install a Harness Delegate in your Kubernetes cluster so the chaos runner can execute faults against your workloads. Follow the [Install a Delegate on Kubernetes](https://developer.harness.io/3k-docs/platform/delegates-v2/install-a-delegate/install-kubernetes-delegate/) guide.
 
 
 
@@ -214,22 +196,23 @@ kubectl run curl-test --rm -i --tty --image=curlimages/curl --namespace=chaos-de
 
 1. Navigate to **Resilience Testing → Chaos Experiments**.
 2. Click **+ New Experiment**.
-3. Enter the experiment name: `pod-delete-resilience-demo`.
+3. Enter the experiment name: `pod-network-latency-resilience-demo`.
 4. Select the **Resilience Testing Infrastructure** you created above.
 5. Click **Next** to open the **Chaos Studio** (blank canvas).
 
 
 
-### Step 2: Add the Pod Delete Fault
+### Step 2: Add the Pod Network Latency Fault
 
 1. Click the **+** icon in the Studio to add a fault.
-2. Search for **Kubernetes → Pod Delete**.
+2. Search for **Kubernetes → Pod Network Latency**.
 3. Configure:
 
   | Parameter         | Value                 |
   | ----------------- | --------------------- |
   | Namespace         | `chaos-demo`          |
   | Label Selector    | `app=resilience-demo` |
+  | Network Latency   | `2s`                  |
   | Duration          | `30s`                 |
   | Pods Affected (%) | `50`                  |
 
@@ -249,7 +232,6 @@ kubectl run curl-test --rm -i --tty --image=curlimages/curl --namespace=chaos-de
   | URL               | `http://resilience-demo-svc.chaos-demo.svc.cluster.local` |
   | Method            | `GET`                                                     |
   | Expected Response | `200`                                                     |
-  | Mode              | `Continuous`                                              |
 
 4. Click **Apply Changes**.
 
@@ -259,7 +241,7 @@ kubectl run curl-test --rm -i --tty --image=curlimages/curl --namespace=chaos-de
 
 1. Click **Run** to start the experiment.
 2. Monitor the execution:
-  - Observe pods being terminated in the `chaos-demo` namespace.
+  - Observe that target pods remain running while network delay is injected.
   - Watch the HTTP probe status — it should remain green throughout.
 3. After completion, review the **Resilience Score**.
 
@@ -270,17 +252,17 @@ kubectl run curl-test --rm -i --tty --image=curlimages/curl --namespace=chaos-de
 ## Expected Outcome
 
 
-| Metric               | Expected Value | Meaning                                           |
-| -------------------- | -------------- | ------------------------------------------------- |
-| **Resilience Score** | 100%           | All probes passed; the system recovered fully     |
-| **Pod Recovery**     | < 15 seconds   | Kubernetes rescheduled deleted pods automatically |
-| **HTTP Probe**       | All Green      | Service remained available during fault injection |
+| Metric               | Expected Value | Meaning                                                    |
+| -------------------- | -------------- | ---------------------------------------------------------- |
+| **Resilience Score** | 100%           | All probes passed; the service stayed reachable            |
+| **Pod Status**       | Running        | Pods are delayed, not deleted or restarted                 |
+| **HTTP Probe**       | All Green      | Service remained available during fault injection          |
 
 
 If the Resilience Score is below 100%, investigate:
 
-- Are there sufficient replicas to handle partial pod loss?
-- Are resource requests/limits preventing pod scheduling?
+- Is the HTTP probe timeout high enough for the injected network latency?
+- Are there sufficient replicas so some traffic can avoid delayed pods?
 - Is the readiness probe configured correctly?
 
 ---
@@ -303,7 +285,8 @@ kubectl delete namespace chaos-demo
 
 - [Set up Kubernetes chaos infrastructure (DDCR)](https://developer.harness.io/docs/resilience-testing/chaos-testing/infrastructure/kubernetes)
 - [Dedicated delegate approach](https://developer.harness.io/docs/resilience-testing/chaos-testing/infrastructure/kubernetes/dedicated-delegate)
-- [Kubernetes Pod Delete Fault Reference](https://developer.harness.io/docs/chaos-engineering/chaos-faults/kubernetes/pod/pod-delete)
+- [Install a Delegate on Kubernetes](https://developer.harness.io/3k-docs/platform/delegates-v2/install-a-delegate/install-kubernetes-delegate/)
+- [Kubernetes Pod Network Latency Fault Reference](https://developer.harness.io/docs/chaos-engineering/faults/chaos-faults/kubernetes/pod/pod-network-latency)
 - [HTTP Probe Configuration Guide](https://developer.harness.io/docs/chaos-engineering/features/probes/http-probe)
 
 ---
