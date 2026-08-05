@@ -56,11 +56,12 @@ This tutorial deploys a multi-replica **nginx** web service into the `chaos-demo
 | Resource | Name | Details |
 | -------- | ---- | ------- |
 | **Namespace** | `chaos-demo` | Isolated namespace for the demo |
+| **ConfigMap** | `resilience-demo-nginx` | Nginx listen config for container port **8080** |
 | **Deployment** | `resilience-demo` | `nginx:stable-alpine`, **3 replicas**, label `app=resilience-demo` |
-| **Service** | `resilience-demo-svc` | **ClusterIP** on port **80** → container port 80 |
+| **Service** | `resilience-demo-svc` | **ClusterIP** on port **80** → container port **8080** |
 
 - Image: `nginx:stable-alpine` (default welcome page on `/`)
-- Health: readiness and liveness HTTP probes on `/` port 80
+- Health: readiness and liveness HTTP probes on `/` port **8080**
 - Chaos Studio probe URL: `http://resilience-demo-svc.chaos-demo.svc.cluster.local`
 
 Three replicas let a Pod Delete fault that affects ~50% of pods leave the Service available while Kubernetes recreates deleted pods. All of this is defined in a single manifest: `k8s/deployment.yaml`.
@@ -76,7 +77,7 @@ rt-tidbits-chaos-studio-experiment/
 ├── README.md                           # This file — full tutorial guide
 ├── LICENSE                             # Apache License 2.0
 └── k8s/
-    └── deployment.yaml                 # Namespace, nginx Deployment, and ClusterIP Service
+    └── deployment.yaml                 # Namespace, ConfigMap, nginx Deployment, and ClusterIP Service
 ```
 
 ---
@@ -175,7 +176,7 @@ Clone this repository and apply the Kubernetes manifests:
 git clone https://github.com/animesh-sri-harness/rt-tidbits-chaos-studio-experiment-.git
 cd rt-tidbits-chaos-studio-experiment-
 
-# Deploy namespace, nginx app (3 replicas), and ClusterIP service
+# Deploy namespace, ConfigMap, nginx app (3 replicas), and ClusterIP service
 kubectl apply -f k8s/deployment.yaml
 ```
 
