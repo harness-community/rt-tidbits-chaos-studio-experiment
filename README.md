@@ -4,7 +4,7 @@
 > **Duration:** ~10 minutes  
 > **Module:** Resilience Testing
 
-Build your first chaos experiment from scratch using **Harness Chaos Studio**. This tutorial walks you through deploying an **nginx-based Kubernetes service** (`resilience-demo` / `resilience-demo-svc` in `chaos-demo`), injecting a Pod Network Latency fault, and validating steady-state behavior with an HTTP probe.
+Build your first chaos experiment from scratch using **Harness Chaos Studio**. This tutorial first deploys an **nginx-based Kubernetes service** (`resilience-demo` / `resilience-demo-svc` in `chaos-demo`), then configures Harness and Service Discovery so the application is visible before injecting a Pod Network Latency fault and validating steady-state behavior with an HTTP probe.
 
 ---
 
@@ -14,9 +14,15 @@ Build your first chaos experiment from scratch using **Harness Chaos Studio**. T
 - [Target Service](#target-service)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
-- [Setup Instructions](#setup-instructions)
+- [Deploy the Sample Application](#deploy-the-sample-application)
   - [1. Deploy the Sample Application](#1-deploy-the-sample-application)
   - [2. Verify the Deployment](#2-verify-the-deployment)
+- [Configure Harness](#configure-harness)
+  - [1. Install a Harness Delegate](#1-install-a-harness-delegate)
+  - [2. Create a Kubernetes Connector](#2-create-a-kubernetes-connector)
+  - [3. Create the Resilience Testing Infrastructure](#3-create-the-resilience-testing-infrastructure)
+  - [4. Configure Service Discovery](#4-configure-service-discovery)
+  - [5. Verify the nginx Application Is Discovered](#5-verify-the-nginx-application-is-discovered)
 - [Run the Chaos Experiment](#run-the-chaos-experiment)
   - [Step 1: Create a New Experiment](#step-1-create-a-new-experiment)
   - [Step 2: Add the Pod Network Latency Fault](#step-2-add-the-pod-network-latency-fault)
@@ -42,6 +48,7 @@ This tutorial demonstrates:
 | -------------------- | -------------------------------------------------------------------------------- |
 | **Faults**           | How to inject controlled network delay (Pod Network Latency) into a running service |
 | **Probes**           | How to set up HTTP health checks that validate steady-state behavior             |
+| **Service Discovery** | How to discover the deployed nginx workload in Harness                          |
 | **Resilience Score** | How to measure and quantify your system's ability to stay available under stress |
 
 
@@ -88,9 +95,8 @@ rt-tidbits-chaos-studio-experiment/
 
 Before starting, ensure the following are in place:
 
-### 1. Kubernetes Cluster
-
-You need access to a running Kubernetes cluster. Any of the following will work:
+1. Access to a Harness account, organization, and project with permission to configure connectors, delegates, Resilience Testing infrastructure, and Service Discovery.
+2. Access to a running Kubernetes cluster. Any of the following will work:
 
 
 | Provider     | Command / Link                                                                            |
@@ -101,51 +107,20 @@ You need access to a running Kubernetes cluster. Any of the following will work:
 | **AKS**      | [Azure Kubernetes Service](https://azure.microsoft.com/en-us/products/kubernetes-service) |
 
 
-Verify cluster access:
+3. `kubectl` configured for the target cluster. Verify access:
 
 ```bash
 kubectl cluster-info
 kubectl get nodes
 ```
 
-
-
-### 2. Harness Delegate
-
-Chaos experiments run through the **Delegate-Driven Chaos Runner (DDCR)** — there is no separate chaos agent. Install a Harness Delegate in your Kubernetes cluster so the chaos runner can execute faults against your workloads. Follow the [Install a Delegate on Kubernetes](https://developer.harness.io/3k-docs/platform/delegates-v2/install-a-delegate/install-kubernetes-delegate/) guide.
-
-
-
-### 3. Kubernetes Connector
-
-Create a [Kubernetes connector](https://developer.harness.io/docs/platform/connectors/cloud-providers/ref-cloud-providers/kubernetes-cluster-connector-settings-reference) that reaches your target cluster (typically via the Delegate you installed above).
-
-
-
-### 4. Resilience Testing Infrastructure
-
-Create a **Kubernetes (Harness Infrastructure)** that uses the Delegate
-
-1. In Harness, go to **Resilience Testing → Project Settings → Resilience Testing Infrastructures**.
-2. Select the **Kubernetes (Harness Infrastructure)** tab.
-3. Click **+ New Infrastructure**.
-4. Pick (or create) the **environment** the infrastructure belongs to, then click **Continue**.
-5. In the form, set:
-   - **Deployment Type:** Kubernetes
-   - **Infrastructure Type:** Direct Connection (Kubernetes)
-   - **Connector:** the Kubernetes connector from step 3
-   - **Namespace:** where chaos runner and fault pods will be created (e.g. `harness-delegate-ng` or `chaos-demo`)
-6. Click **Save**. Status starts as **Inactive**.
-7. In the **Create Chaos Experiments on your Infrastructure** wizard that opens, choose **Beginner** or **Expert**, then click **Go!** (optionally configure advanced runner/discovery settings first).
-8. Wait until the infrastructure shows as **Active** (Delegate registers the chaos runner and discovery completes its first sweep).
-
-Full guide: [Dedicated delegate approach](https://developer.harness.io/docs/resilience-testing/chaos-testing/infrastructure/kubernetes/dedicated-delegate).
+4. A cluster that permits the privileged helper pods required by the Pod Network Latency fault.
 
 ---
 
 
 
-## Setup Instructions
+## Deploy the Sample Application
 
 
 
@@ -183,6 +158,66 @@ kubectl get svc -n chaos-demo
 kubectl run curl-test --rm -i --tty --image=curlimages/curl --namespace=chaos-demo \
   -- curl -s http://resilience-demo-svc.chaos-demo.svc.cluster.local
 ```
+
+---
+
+## Configure Harness
+
+Configure Harness only after the sample application is running. This allows the first Service Discovery scan to find the nginx workload.
+
+### 1. Install a Harness Delegate
+
+Chaos experiments run through the **Delegate-Driven Chaos Runner (DDCR)**. Install a Harness Delegate that can reach the Kubernetes cluster by following [Install a Delegate on Kubernetes](https://developer.harness.io/3k-docs/platform/delegates-v2/install-a-delegate/install-kubernetes-delegate/), then confirm that it shows as **Connected** in Harness.
+
+### 2. Create a Kubernetes Connector
+
+Create a [Kubernetes connector](https://developer.harness.io/docs/platform/connectors/cloud-providers/ref-cloud-providers/kubernetes-cluster-connector-settings-reference) for the target cluster:
+
+1. In the Harness project, go to **Project Settings → Connectors**.
+2. Select **New Connector → Kubernetes Cluster**.
+3. Configure the connector to use the credentials available to the Delegate.
+4. Select the Delegate or matching Delegate tags.
+5. Test the connection and save the connector.
+
+### 3. Create the Resilience Testing Infrastructure
+
+1. Go to **Resilience Testing → Project Settings → Resilience Testing Infrastructures**.
+2. Select **Kubernetes (Harness Infrastructure)** and click **New Infrastructure**.
+3. Pick or create an environment, then click **Continue**.
+4. Configure:
+   - **Deployment Type:** Kubernetes
+   - **Infrastructure Type:** Direct Connection (Kubernetes)
+   - **Connector:** the Kubernetes connector created above
+   - **Namespace:** `chaos-demo`
+5. Save the infrastructure and complete the setup wizard.
+6. Wait until its status is **Active**.
+
+For more information, see [Set up Kubernetes chaos infrastructure](https://developer.harness.io/docs/resilience-testing/chaos-testing/infrastructure/kubernetes).
+
+### 4. Configure Service Discovery
+
+Service Discovery is separate from the Resilience Testing infrastructure. It continuously scans the cluster and builds an inventory of Kubernetes workloads.
+
+1. Go to **Resilience Testing → Project Settings → Discovery**.
+2. Create a discovery agent.
+3. Select the environment, infrastructure, and Kubernetes connector configured above.
+4. Configure the agent to discover the `chaos-demo` namespace.
+5. Choose the scan schedule or persistent-agent option available in your account.
+6. Save the agent and follow the on-screen instructions to install any generated resources.
+7. Wait for the first discovery scan to complete successfully.
+
+See [Service Discovery](https://developer.harness.io/harness-platform/use-harness-platform/service-discovery) for details.
+
+### 5. Verify the nginx Application Is Discovered
+
+1. In **Project Settings → Discovery**, open the discovered workload inventory.
+2. Filter by namespace `chaos-demo`.
+3. Confirm that `resilience-demo` or `resilience-demo-svc` appears.
+4. Optionally go to **Resilience Testing → Insights → Application Maps**, create a map, and select the discovered nginx service.
+
+If it does not appear, confirm that the application pods are running, the discovery agent is healthy, the selected connector reaches the same cluster, and the agent includes the `chaos-demo` namespace.
+
+> Service Discovery inventories workloads continuously. If your account uses Resilience Testing service onboarding, select the discovered nginx workload in the onboarding flow to create a testable Resilience Testing service.
 
 ---
 
@@ -284,6 +319,7 @@ kubectl delete namespace chaos-demo
 ## Additional Resources
 
 - [Set up Kubernetes chaos infrastructure (DDCR)](https://developer.harness.io/docs/resilience-testing/chaos-testing/infrastructure/kubernetes)
+- [Harness Service Discovery](https://developer.harness.io/harness-platform/use-harness-platform/service-discovery)
 - [Dedicated delegate approach](https://developer.harness.io/docs/resilience-testing/chaos-testing/infrastructure/kubernetes/dedicated-delegate)
 - [Install a Delegate on Kubernetes](https://developer.harness.io/3k-docs/platform/delegates-v2/install-a-delegate/install-kubernetes-delegate/)
 - [Kubernetes Pod Network Latency Fault Reference](https://developer.harness.io/docs/chaos-engineering/faults/chaos-faults/kubernetes/pod/pod-network-latency)
