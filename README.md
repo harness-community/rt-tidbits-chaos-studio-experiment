@@ -26,8 +26,9 @@ Build your first chaos experiment from scratch using **Harness Chaos Studio**. T
 - [Run the Chaos Experiment](#run-the-chaos-experiment)
   - [Step 1: Create a New Experiment](#step-1-create-a-new-experiment)
   - [Step 2: Add the Pod Network Latency Fault](#step-2-add-the-pod-network-latency-fault)
-  - [Step 3: Attach an HTTP Probe](#step-3-attach-an-http-probe)
-  - [Step 4: Execute and Analyze](#step-4-execute-and-analyze)
+  - [Step 3: Create an HTTP Probe](#step-3-create-an-http-probe)
+  - [Step 4: Use the Probe in the Experiment](#step-4-use-the-probe-in-the-experiment)
+  - [Step 5: Execute and Analyze](#step-5-execute-and-analyze)
 - [Expected Outcome](#expected-outcome)
 - [Cleanup](#cleanup)
 - [Additional Resources](#additional-resources)
@@ -243,22 +244,25 @@ If it does not appear, confirm that the application pods are running, the discov
 2. Search for **Kubernetes → Pod Network Latency**.
 3. Configure:
 
-  | Parameter         | Value                 |
-  | ----------------- | --------------------- |
-  | Namespace         | `chaos-demo`          |
-  | Label Selector    | `app=resilience-demo` |
-  | Network Latency   | `2s`                  |
-  | Duration          | `30s`                 |
-  | Pods Affected (%) | `50`                  |
+  | Parameter                  | Value                 |
+  | -------------------------- | --------------------- |
+  | Target Workload Kind       | `Deployment`          |
+  | Target Workload Namespace  | `chaos-demo`          |
+  | Target Workload            | `resilience-demo`     |
+  | Target Workload Labels     | `app=resilience-demo` |
+  | Network Latency            | `2s`                  |
+  | Duration                   | `30s`                 |
+  | Pods Affected (%)          | `50`                  |
 
 4. Click **Apply Changes**.
+5. Save the experiment and close the experiment builder.
 
 
 
-### Step 3: Attach an HTTP Probe
+### Step 3: Create an HTTP Probe
 
-1. In the fault configuration, go to the **Probes** tab.
-2. Click **+ Add Probe** → **HTTP Probe**.
+1. Go to **Project Settings → Resilience Testing Probes**.
+2. Click **+ New Probe** and select **HTTP Probe**.
 3. Configure:
 
   | Parameter         | Value                                                     |
@@ -268,11 +272,20 @@ If it does not appear, confirm that the application pods are running, the discov
   | Method            | `GET`                                                     |
   | Expected Response | `200`                                                     |
 
+4. Save the probe.
+
+
+
+### Step 4: Use the Probe in the Experiment
+
+1. Open the `pod-network-latency-resilience-demo` experiment in Chaos Studio.
+2. Open the **Pod Network Latency** fault configuration and go to the **Probes** tab.
+3. Select the `frontend-health-check` probe you created.
 4. Click **Apply Changes**.
 
 
 
-### Step 4: Execute and Analyze
+### Step 5: Execute and Analyze
 
 1. Click **Run** to start the experiment.
 2. Monitor the execution:
