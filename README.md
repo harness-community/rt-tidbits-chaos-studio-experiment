@@ -71,7 +71,7 @@ This tutorial deploys a multi-replica **nginx** web service into the `chaos-demo
 - Health: readiness and liveness HTTP probes on `/` port **8080**
 - Chaos Studio probe URL: `http://resilience-demo-svc.chaos-demo.svc.cluster.local`
 
-Three replicas let a Pod Network Latency fault that affects ~50% of pods leave unaffected replicas able to serve traffic while delayed pods experience injected network delay. All of this is defined in a single manifest: `k8s/deployment.yaml`.
+Three replicas let a Pod Network Latency fault that affects ~50% of pods leave unaffected replicas able to serve traffic while delayed pods experience injected network delay. All of this is defined in a single manifest: `k8s/manifest.yaml`.
 
 ---
 
@@ -84,7 +84,7 @@ rt-tidbits-chaos-studio-experiment/
 ├── README.md                           # This file — full tutorial guide
 ├── LICENSE                             # Apache License 2.0
 └── k8s/
-    └── deployment.yaml                 # Namespace, ConfigMap, nginx Deployment, and ClusterIP Service
+    └── manifest.yaml                   # Namespace, ConfigMap, nginx Deployment, and ClusterIP Service
 ```
 
 ---
@@ -134,7 +134,7 @@ git clone https://github.com/animesh-sri-harness/rt-tidbits-chaos-studio-experim
 cd rt-tidbits-chaos-studio-experiment-
 
 # Deploy namespace, ConfigMap, nginx app (3 replicas), and ClusterIP service
-kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/manifest.yaml
 ```
 
 
